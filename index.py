@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import winsound
+import hashlib
 
 url = 'https://lambda-treasure-hunt.herokuapp.com/api/adv'
 token = os.environ['MY_KEY']
@@ -129,10 +130,10 @@ def sell(item):
         return data
 
 
-def examine(item):
-    dirobj = {'name': f'{item}'}
+def change_name():
+    dirobj = {'name': 'ken_ridenour', 'confirm': 'aye'}
     r = requests.post(
-        url=url+'/examine/',
+        url=url+'/change_name/',
         headers={
             'Authorization': f'Token {token}',
             'Content-Type': 'application/json'
@@ -147,6 +148,83 @@ def examine(item):
         data = r.json
         print('Error')
         return data
+
+
+def examine(item):
+    dirobj = {'name': f'{item}'}
+    r = requests.post(
+        url=url+'/examine/',
+        headers={
+            'Authorization': f'Token {token}',
+            'Content-Type': 'application/json'
+        },
+        json=dirobj
+    )
+
+    try:
+        data = r.json()
+        print(data['description'])
+        return data
+    except:
+        data = r.json
+        print('Error')
+        return data
+
+
+def mine(proof):
+    dirobj = {'proof': proof}
+    r = requests.post(
+        url='https://lambda-treasure-hunt.herokuapp.com/api/bc/mine/',
+        headers={
+            'Authorization': f'Token {token}',
+            'Content-Type': 'application/json'
+        },
+        json=dirobj
+    )
+
+    try:
+        data = r.json()
+        print(data)
+        return data
+    except:
+        print('Error')
+        print(r)
+
+
+def get_last_proof():
+    r = requests.get(
+        url='https://lambda-treasure-hunt.herokuapp.com/api/bc/last_proof/',
+        headers={
+            'Authorization': f'Token {token}',
+            'Content-Type': 'application/json'
+        }
+    )
+
+    try:
+        data = r.json()
+        print(data)
+        return data
+    except:
+        # data = r.json()
+        print('Error')
+        # print(data)
+        print(r)
+
+
+def proof_of_work(last_proof, diffi):
+
+    proof = 0
+    while not valid_proof(last_proof, proof, diffi):
+        proof += 1
+    return proof
+
+
+def valid_proof(last_proof, proof, diffi):
+
+    guess = f'{last_proof}{proof}'.encode()
+    guess_hash = hashlib.sha256(guess).hexdigest()
+    equals_string = '0' * diffi
+    return guess_hash[:diffi] == equals_string
 
 
 if __name__ == '__main__':
@@ -181,8 +259,17 @@ if __name__ == '__main__':
         elif cmds[0] == 'examine':
             item = f'{cmds[1]}'
             print(examine(item))
+        elif cmds[0] == 'name':
+            change_name()
         elif cmds[0] == 'status':
             print(status())
+        elif cmds[0] == 'mine':
+            proof_data = get_last_proof()
+            last_proof = proof_data['proof']
+            diffi = int(proof_data['difficulty'])
+            print(last_proof, diffi)
+            proof = proof_of_work(last_proof, diffi)
+            mine(proof)
         elif cmds[0] == 'q':
             sys.exit(0)
         else:
